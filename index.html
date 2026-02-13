@@ -119,6 +119,8 @@
         let isDrawing = false;
         let needsUpdate = false;
         let hasDrawing = false;
+        let updateTimer = null;
+        const UPDATE_DELAY = 300; // milliseconds to wait after drawing stops
 
         // Initialize canvases
         function initializeCanvases() {
@@ -143,7 +145,13 @@
         function stopDrawing() {
             if (isDrawing) {
                 isDrawing = false;
-                needsUpdate = true;
+                // Debounce: wait for UPDATE_DELAY ms before computing Fourier transform
+                if (updateTimer) {
+                    clearTimeout(updateTimer);
+                }
+                updateTimer = setTimeout(() => {
+                    needsUpdate = true;
+                }, UPDATE_DELAY);
             }
         }
 
@@ -160,7 +168,6 @@
             drawingCtx.fill();
 
             hasDrawing = true;
-            needsUpdate = true;
         }
 
         // Event listeners for drawing
