@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diffraction Fun - 2D Fourier Transform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            color: #666;
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 800px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        canvas {
+            border: 2px solid #333;
+            cursor: crosshair;
+            background-color: white;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:active {
+            background-color: #004085;
+        }
+
+        .axis-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Diffraction Fun - 2D Fourier Transform</h1>
+    <p class="description">Draw on the left panel and see the 2D Fourier transform update in real-time on the right panel.</p>
+    
+    <div class="container">
+        <div class="panel">
+            <div class="panel-title">Drawing Panel (Spatial Domain)</div>
+            <canvas id="drawingCanvas" width="400" height="400"></canvas>
+            <div class="axis-label">x-axis (horizontal), y-axis (vertical)</div>
+            <div class="controls">
+                <button id="clearBtn">Clear</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">Fourier Transform (Frequency Domain)</div>
+            <canvas id="fourierCanvas" width="400" height="400"></canvas>
+            <div class="axis-label">kx-axis (horizontal), ky-axis (vertical)</div>
+        </div>
+    </div>
+
+    <script>
+        // Get canvas elements and contexts
+        const drawingCanvas = document.getElementById('drawingCanvas');
+        const fourierCanvas = document.getElementById('fourierCanvas');
+        const drawingCtx = drawingCanvas.getContext('2d');
+        const fourierCtx = fourierCanvas.getContext('2d');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Drawing state
+        let isDrawing = false;
+        let needsUpdate = false;
+        let hasDrawing = false;
+
+        // Initialize canvases
+        function initializeCanvases() {
+            // Clear drawing canvas with white background
+            drawingCtx.fillStyle = 'white';
+            drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            
+            // Clear fourier canvas
+            fourierCtx.fillStyle = 'black';
+            fourierCtx.fillRect(0, 0, fourierCanvas.width, fourierCanvas.height);
+            
+            hasDrawing = false;
+            needsUpdate = false;
+        }
+
+        // Drawing functionality
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                needsUpdate = true;
+            }
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const rect = drawingCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            drawingCtx.fillStyle = 'black';
+            drawingCtx.beginPath();
+            drawingCtx.arc(x, y, 3, 0, Math.PI * 2);
+            drawingCtx.fill();
+
+            hasDrawing = true;
+            needsUpdate = true;
+        }
+
+        // Event listeners for drawing
+        drawingCanvas.addEventListener('mousedown', startDrawing);
+        drawingCanvas.addEventListener('mouseup', stopDrawing);
+        drawingCanvas.addEventListener('mouseleave', stopDrawing);
+        drawingCanvas.addEventListener('mousemove', draw);
+
+        // Clear button
+        clearBtn.addEventListener('click', initializeCanvases);
+
+        // 2D Fourier Transform implementation
+        function compute2DFourierTransform() {
+            const width = drawingCanvas.width;
+            const height = drawingCanvas.height;
+
+            // Get image data from drawing canvas
+            const imageData = drawingCtx.getImageData(0, 0, width, height);
+            const pixels = imageData.data;
+
+            // Convert to grayscale array (0 to 1 scale)
+            const spatialData = new Array(height);
+            for (let y = 0; y < height; y++) {
+                spatialData[y] = new Array(width);
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    // Convert RGB to grayscale, normalize to 0-1
+                    const gray = (pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / (3 * 255);
+                    spatialData[y][x] = gray;
+                }
+            }
+
+            // Compute 2D DFT
+            const frequencyReal = new Array(height);
+            const frequencyImag = new Array(height);
+            for (let v = 0; v < height; v++) {
+                frequencyReal[v] = new Array(width);
+                frequencyImag[v] = new Array(width);
+            }
+
+            // Sample the frequency domain (not every point for performance)
+            const sampleRate = 4; // Adjust for performance vs quality
+            for (let ky = 0; ky < height; ky += sampleRate) {
+                for (let kx = 0; kx < width; kx += sampleRate) {
+                    let real = 0;
+                    let imag = 0;
+
+                    // Sum over all spatial points (with sampling for performance)
+                    const spatialSample = 2;
+                    for (let y = 0; y < height; y += spatialSample) {
+                        for (let x = 0; x < width; x += spatialSample) {
+                            const angle = -2 * Math.PI * ((kx * x / width) + (ky * y / height));
+                            real += spatialData[y][x] * Math.cos(angle);
+                            imag += spatialData[y][x] * Math.sin(angle);
+                        }
+                    }
+
+                    frequencyReal[ky][kx] = real;
+                    frequencyImag[ky][kx] = imag;
+                }
+            }
+
+            // Calculate magnitude and normalize
+            let maxMagnitude = 0;
+            const magnitude = new Array(height);
+            for (let y = 0; y < height; y++) {
+                magnitude[y] = new Array(width);
+                for (let x = 0; x < width; x++) {
+                    if (x % sampleRate === 0 && y % sampleRate === 0) {
+                        const real = frequencyReal[y][x];
+                        const imag = frequencyImag[y][x];
+                        const mag = Math.sqrt(real * real + imag * imag);
+                        magnitude[y][x] = mag;
+                        if (mag > maxMagnitude) maxMagnitude = mag;
+                    }
+                }
+            }
+
+            // Display the Fourier transform with logarithmic scaling
+            const outputImageData = fourierCtx.createImageData(width, height);
+            const outputPixels = outputImageData.data;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    
+                    if (x % sampleRate === 0 && y % sampleRate === 0) {
+                        // Log scaling for better visualization
+                        const normalized = Math.log(1 + magnitude[y][x]) / Math.log(1 + maxMagnitude);
+                        const intensity = Math.floor(normalized * 255);
+                        
+                        // Shift zero frequency to center
+                        const shiftedX = (x + width / 2) % width;
+                        const shiftedY = (y + height / 2) % height;
+                        const shiftedIdx = (shiftedY * width + shiftedX) * 4;
+                        
+                        outputPixels[shiftedIdx] = intensity;
+                        outputPixels[shiftedIdx + 1] = intensity;
+                        outputPixels[shiftedIdx + 2] = intensity;
+                        outputPixels[shiftedIdx + 3] = 255;
+                    }
+                }
+            }
+
+            fourierCtx.putImageData(outputImageData, 0, 0);
+        }
+
+        // Animation loop for auto-updating
+        function updateLoop() {
+            if (needsUpdate && hasDrawing) {
+                compute2DFourierTransform();
+                needsUpdate = false;
+            }
+            requestAnimationFrame(updateLoop);
+        }
+
+        // Initialize
+        initializeCanvases();
+        updateLoop();
+    </script>
+</body>
+</html>
