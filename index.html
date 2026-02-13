@@ -194,12 +194,8 @@
             }
 
             // Compute 2D DFT
-            const frequencyReal = new Array(height);
-            const frequencyImag = new Array(height);
-            for (let v = 0; v < height; v++) {
-                frequencyReal[v] = new Array(width);
-                frequencyImag[v] = new Array(width);
-            }
+            const frequencyReal = {};
+            const frequencyImag = {};
 
             // Sample the frequency domain (not every point for performance)
             const sampleRate = 4; // Adjust for performance vs quality
@@ -218,24 +214,23 @@
                         }
                     }
 
-                    frequencyReal[ky][kx] = real;
-                    frequencyImag[ky][kx] = imag;
+                    const key = `${ky},${kx}`;
+                    frequencyReal[key] = real;
+                    frequencyImag[key] = imag;
                 }
             }
 
             // Calculate magnitude and normalize
             let maxMagnitude = 0;
-            const magnitude = new Array(height);
-            for (let y = 0; y < height; y++) {
-                magnitude[y] = new Array(width);
-                for (let x = 0; x < width; x++) {
-                    if (x % sampleRate === 0 && y % sampleRate === 0) {
-                        const real = frequencyReal[y][x];
-                        const imag = frequencyImag[y][x];
-                        const mag = Math.sqrt(real * real + imag * imag);
-                        magnitude[y][x] = mag;
-                        if (mag > maxMagnitude) maxMagnitude = mag;
-                    }
+            const magnitude = {};
+            for (let ky = 0; ky < height; ky += sampleRate) {
+                for (let kx = 0; kx < width; kx += sampleRate) {
+                    const key = `${ky},${kx}`;
+                    const real = frequencyReal[key] || 0;
+                    const imag = frequencyImag[key] || 0;
+                    const mag = Math.sqrt(real * real + imag * imag);
+                    magnitude[key] = mag;
+                    if (mag > maxMagnitude) maxMagnitude = mag;
                 }
             }
 
@@ -243,18 +238,20 @@
             const outputImageData = fourierCtx.createImageData(width, height);
             const outputPixels = outputImageData.data;
 
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    
-                    if (x % sampleRate === 0 && y % sampleRate === 0) {
+            // Guard against division by zero
+            if (maxMagnitude > 0) {
+                for (let ky = 0; ky < height; ky += sampleRate) {
+                    for (let kx = 0; kx < width; kx += sampleRate) {
+                        const key = `${ky},${kx}`;
+                        const mag = magnitude[key] || 0;
+                        
                         // Log scaling for better visualization
-                        const normalized = Math.log(1 + magnitude[y][x]) / Math.log(1 + maxMagnitude);
+                        const normalized = Math.log(1 + mag) / Math.log(1 + maxMagnitude);
                         const intensity = Math.floor(normalized * 255);
                         
                         // Shift zero frequency to center
-                        const shiftedX = (x + width / 2) % width;
-                        const shiftedY = (y + height / 2) % height;
+                        const shiftedX = (kx + Math.floor(width / 2)) % width;
+                        const shiftedY = (ky + Math.floor(height / 2)) % height;
                         const shiftedIdx = (shiftedY * width + shiftedX) * 4;
                         
                         outputPixels[shiftedIdx] = intensity;
