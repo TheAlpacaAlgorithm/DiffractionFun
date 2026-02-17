@@ -118,8 +118,7 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         // Get canvas elements and contexts
         const drawingCanvas = document.getElementById('drawingCanvas');
         const fourierCanvas = document.getElementById('fourierCanvas');
-        const drawingCtx = drawingCanvas.getContext('2d');
-        drawingCtx.willReadFrequently = true;
+        const drawingCtx = drawingCanvas.getContext('2d',{ willReadFrequently: true });
         const fourierCtx = fourierCanvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
 
