@@ -130,6 +130,7 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         let updateTimer = null;
         let lastX = 0;
         let lastY = 0;
+        let moved = false;
         const UPDATE_DELAY = 30; // milliseconds to wait after drawing stops
 
         // Initialize canvases
@@ -150,15 +151,23 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         function startDrawing(e) {
             if (e.touches) e.preventDefault();
             isDrawing = true;
+            moved = false;
             const pos = getPointerPos(e);
             lastX = pos.x;
             lastY = pos.y;
-            draw(e);
         }
 
         function stopDrawing(e) {
             if (e && e.touches) e.preventDefault();
             if (isDrawing) {
+
+                if (!moved) {
+                    drawingCtx.fillStyle = 'black';
+                    drawingCtx.beginPath();
+                    drawingCtx.arc(lastX, lastY, 10, 0, Math.PI * 2);
+                    drawingCtx.fill();
+                    hasDrawing = true;
+                }
                 isDrawing = false;
                 // Debounce: wait for UPDATE_DELAY ms before computing Fourier transform
                 if (updateTimer) {
@@ -193,6 +202,7 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
             lastX = x;
             lastY = y;
             hasDrawing = true;
+            moved = true;
         }
 
         function getPointerPos(e) {
