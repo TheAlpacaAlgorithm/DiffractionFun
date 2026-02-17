@@ -193,6 +193,7 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         function compute2DFourierTransform() {
             const width = drawingCanvas.width;
             const height = drawingCanvas.height;
+            const padding = 2;
 
             // Get image data from drawing canvas
             const imageData = drawingCtx.getImageData(0, 0, width, height);
@@ -200,38 +201,72 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
 
 
             // Convert to grayscale array (0 to 1 scale)
-            const spatialData = zeros([height, width]);
+            const spH = height * padding;
+            const spatialData = zeros([spH, spH]);
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
                     const idx = (y * width + x) * 4;
-                    const gray = pixels[idx] < 250 ? 0 : 1;
-                    spatialData.set(y,x,gray)
+                    const gray = pixels[idx] < 250 ? 1 : 0;
+                    spatialData.set(y+(spH-height)/2,x+(spH-height)/2,gray)
                 }
             }
             // Display the Fourier transform with logarithmic scaling
-            const outputImageData = fourierCtx.createImageData(width, height);
-            const outputPixels = outputImageData.data;
-            fft(2,spatialData,zeros([height, width]));
-            ops.abseq(spatialData);
-            ops.powseq(spatialData,2);
-            spatialData.set(0,0,0); // avoid log(0) issues
-            ops.logeq(spatialData);
+            let imaginaryData = zeros([spH, spH]);
+
+            fft(2,spatialData,imaginaryData);
+
+
+            ops.muleq(imaginaryData, imaginaryData);
+            ops.muleq(spatialData, spatialData);
+
+
+            ops.addeq(spatialData, imaginaryData);
+            spatialData.set(0,0,spatialData.get(0,1)); // avoid log(0) issues
+
             ops.divseq(spatialData, ops.sup(spatialData));
+
+
+            ops.logeq(spatialData);
+            console.log('max SD after log:', ops.sup(spatialData));
+
+            const maxpow = 10;
+            ops.addseq(spatialData, maxpow);
+            ops.divseq(spatialData, maxpow);
+
+
             let buffer = new Float32Array(width * height * 4);
             for(let y = 0; y < height; y++) {
-                const ys = (y + height/2) % height;
+                const ys = (spH-height/2 + y) % spH;
+                console.log('ys:', ys);
                 for(var x = 0; x < width; x++) {
-                    const xs = (x + width/2) % width;
+                    const xs = (spH-width/2 + x) % spH;
                     var val = spatialData.get(ys,xs);
                     var pos = (y * width + x) * 4; // position in buffer based on x and y
-                    buffer[pos  ] = val*255;           // some R value [0, 255]
+                    buffer[pos  ] = 0;           // some R value [0, 255]
                     buffer[pos+1] = val*255;           // some G value
-                    buffer[pos+2] = val*255;           // some B value
+                    buffer[pos+2] = 0;           // some B value
                     buffer[pos+3] = 255;           // set alpha channel
                 }
             }
+            const outputImageData = fourierCtx.createImageData(height, width);
+            /*
+            let buffer = new Float32Array(spH * spH * 4);
+            for(let y = 0; y < spH; y++) {
+                const ys = (y + spH/2) % spH;
+                for(var x = 0; x < spH; x++) {
+                    const xs = (x + spH/2) % spH;
+                    var val = spatialData.get(ys,xs);
+                    var pos = (y * spH + x) * 4; // position in buffer based on x and y
+                    buffer[pos  ] = 0;           // some R value [0, 255]
+                    buffer[pos+1] = val*255;           // some G value
+                    buffer[pos+2] = 0;           // some B value
+                    buffer[pos+3] = 255;           // set alpha channel
+                }
+            }
+            const outputImageData = fourierCtx.createImageData(spH, spH);*/
+            const outputPixels = outputImageData.data;
             outputPixels.set(buffer);
-            console.log(ops.inf(spatialData))
+
             fourierCtx.putImageData(outputImageData, 0, 0);
         }
 
