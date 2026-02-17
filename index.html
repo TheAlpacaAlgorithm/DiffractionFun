@@ -128,7 +128,9 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         let needsUpdate = false;
         let hasDrawing = false;
         let updateTimer = null;
-        const UPDATE_DELAY = 300; // milliseconds to wait after drawing stops
+        let lastX = 0;
+        let lastY = 0;
+        const UPDATE_DELAY = 30; // milliseconds to wait after drawing stops
 
         // Initialize canvases
         function initializeCanvases() {
@@ -148,6 +150,9 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         function startDrawing(e) {
             if (e.touches) e.preventDefault();
             isDrawing = true;
+            const pos = getPointerPos(e);
+            lastX = pos.x;
+            lastY = pos.y;
             draw(e);
         }
 
@@ -169,6 +174,28 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
             if (e.touches) e.preventDefault();
             if (!isDrawing) return;
 
+            const { x, y } = getPointerPos(e);
+
+            // Interpolate between last and current position
+            const dx = x - lastX;
+            const dy = y - lastY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const step = 2; // smaller = more circles, higher sampling rate
+            for (let i = 0; i <= dist; i += step) {
+                const interpX = lastX + (dx * i) / dist;
+                const interpY = lastY + (dy * i) / dist;
+                drawingCtx.fillStyle = 'black';
+                drawingCtx.beginPath();
+                drawingCtx.arc(interpX, interpY, 10, 0, Math.PI * 2);
+                drawingCtx.fill();
+            }
+
+            lastX = x;
+            lastY = y;
+            hasDrawing = true;
+        }
+
+        function getPointerPos(e) {
             const rect = drawingCanvas.getBoundingClientRect();
             let x, y;
             if (e.touches && e.touches.length > 0) {
@@ -178,12 +205,7 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
                 x = e.clientX - rect.left;
                 y = e.clientY - rect.top;
             }
-            drawingCtx.fillStyle = 'black';
-            drawingCtx.beginPath();
-            drawingCtx.arc(x, y, 10, 0, Math.PI * 2);
-            drawingCtx.fill();
-
-            hasDrawing = true;
+            return { x, y };
         }
 
         // Event listeners for drawing
