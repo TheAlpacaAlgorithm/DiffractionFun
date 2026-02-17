@@ -182,6 +182,10 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         drawingCanvas.addEventListener('mouseup', stopDrawing);
         drawingCanvas.addEventListener('mouseleave', stopDrawing);
         drawingCanvas.addEventListener('mousemove', draw);
+        drawingCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+        drawingCanvas.addEventListener('touchmove', draw, { passive: false });
+        drawingCanvas.addEventListener('touchend', stopDrawing, { passive: false });
+        drawingCanvas.addEventListener('touchcancel', stopDrawing, { passive: false });
 
         // Clear button
         clearBtn.addEventListener('click', initializeCanvases);
@@ -224,7 +228,6 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
 
 
             ops.logeq(spatialData);
-            console.log('max SD after log:', ops.sup(spatialData));
 
             const maxpow = 10;
             ops.addseq(spatialData, maxpow);
@@ -234,7 +237,6 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
             let buffer = new Float32Array(width * height * 4);
             for(let y = 0; y < height; y++) {
                 const ys = (spH-height/2 + y) % spH;
-                console.log('ys:', ys);
                 for(var x = 0; x < width; x++) {
                     const xs = (spH-width/2 + x) % spH;
                     var val = spatialData.get(ys,xs);
