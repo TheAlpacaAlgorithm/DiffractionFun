@@ -93,23 +93,20 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
 "></script>
 </head>
 <body>
-    <h1>Diffraction Fun - 2D Fourier Transform</h1>
-    <p class="description">Draw on the left panel and see the 2D Fourier transform update in real-time on the right panel.</p>
+    <h1>Diffraction Fun</h1>
     
     <div class="container">
         <div class="panel">
-            <div class="panel-title">Drawing Panel (Spatial Domain)</div>
+            <div class="panel-title">hier malen</div>
             <canvas id="drawingCanvas" width="256" height="256"></canvas>
-            <div class="axis-label">x-axis (horizontal), y-axis (vertical)</div>
             <div class="controls">
                 <button id="clearBtn">Clear</button>
             </div>
         </div>
         
         <div class="panel">
-            <div class="panel-title">Fourier Transform (Frequency Domain)</div>
+            <div class="panel-title">hier glubschen</div>
             <canvas id="fourierCanvas" width="256" height="256"></canvas>
-            <div class="axis-label">kx-axis (horizontal), ky-axis (vertical)</div>
         </div>
     </div>
     <script type="module">
@@ -193,7 +190,7 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         function compute2DFourierTransform() {
             const width = drawingCanvas.width;
             const height = drawingCanvas.height;
-            const padding = 2;
+            const padding = 4;
 
             // Get image data from drawing canvas
             const imageData = drawingCtx.getImageData(0, 0, width, height);
