@@ -52,6 +52,7 @@
             border: 2px solid #333;
             cursor: crosshair;
             background-color: white;
+            touch-action: none;
         }
 
         .controls {
@@ -145,11 +146,13 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
 
         // Drawing functionality
         function startDrawing(e) {
+            if (e.touches) e.preventDefault();
             isDrawing = true;
             draw(e);
         }
 
-        function stopDrawing() {
+        function stopDrawing(e) {
+            if (e && e.touches) e.preventDefault();
             if (isDrawing) {
                 isDrawing = false;
                 // Debounce: wait for UPDATE_DELAY ms before computing Fourier transform
@@ -163,12 +166,18 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         }
 
         function draw(e) {
+            if (e.touches) e.preventDefault();
             if (!isDrawing) return;
 
             const rect = drawingCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
+            let x, y;
+            if (e.touches && e.touches.length > 0) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
             drawingCtx.fillStyle = 'black';
             drawingCtx.beginPath();
             drawingCtx.arc(x, y, 10, 0, Math.PI * 2);
@@ -182,10 +191,10 @@ https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mo
         drawingCanvas.addEventListener('mouseup', stopDrawing);
         drawingCanvas.addEventListener('mouseleave', stopDrawing);
         drawingCanvas.addEventListener('mousemove', draw);
-        drawingCanvas.addEventListener('touchstart', startDrawing, { passive: false });
-        drawingCanvas.addEventListener('touchmove', draw, { passive: false });
-        drawingCanvas.addEventListener('touchend', stopDrawing, { passive: false });
-        drawingCanvas.addEventListener('touchcancel', stopDrawing, { passive: false });
+        drawingCanvas.addEventListener('touchstart', startDrawing);
+        drawingCanvas.addEventListener('touchmove', draw);
+        drawingCanvas.addEventListener('touchend', stopDrawing);
+        drawingCanvas.addEventListener('touchcancel', stopDrawing);
 
         // Clear button
         clearBtn.addEventListener('click', initializeCanvases);
