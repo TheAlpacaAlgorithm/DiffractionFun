@@ -85,6 +85,12 @@
             margin-top: 5px;
         }
     </style>
+    <script type="module" src="
+https://cdn.skypack.dev/-/ndarray@v1.0.19-grdQeKOTBdxK6FqCxCHR/dist=es2019,mode=imports/optimized/ndarray.js
+"></script>
+    <script type="module" src="
+https://cdn.skypack.dev/-/ndarray-fft@v1.0.3-ztgDkB8VY0AApKGaxi36/dist=es2019,mode=imports/optimized/ndarray-fft.js
+"></script>
 </head>
 <body>
     <h1>Diffraction Fun - 2D Fourier Transform</h1>
@@ -93,7 +99,7 @@
     <div class="container">
         <div class="panel">
             <div class="panel-title">Drawing Panel (Spatial Domain)</div>
-            <canvas id="drawingCanvas" width="400" height="400"></canvas>
+            <canvas id="drawingCanvas" width="256" height="256"></canvas>
             <div class="axis-label">x-axis (horizontal), y-axis (vertical)</div>
             <div class="controls">
                 <button id="clearBtn">Clear</button>
@@ -102,16 +108,20 @@
         
         <div class="panel">
             <div class="panel-title">Fourier Transform (Frequency Domain)</div>
-            <canvas id="fourierCanvas" width="400" height="400"></canvas>
+            <canvas id="fourierCanvas" width="256" height="256"></canvas>
             <div class="axis-label">kx-axis (horizontal), ky-axis (vertical)</div>
         </div>
     </div>
-
-    <script>
+    <script type="module">
+        import ndarray from 'https://cdn.skypack.dev/ndarray';
+        import fft from 'https://cdn.skypack.dev/ndarray-fft';
+        import zeros from 'https://cdn.skypack.dev/zeros';
+        import ops from 'https://cdn.skypack.dev/ndarray-ops';
         // Get canvas elements and contexts
         const drawingCanvas = document.getElementById('drawingCanvas');
         const fourierCanvas = document.getElementById('fourierCanvas');
         const drawingCtx = drawingCanvas.getContext('2d');
+        drawingCtx.willReadFrequently = true;
         const fourierCtx = fourierCanvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
 
@@ -164,7 +174,7 @@
 
             drawingCtx.fillStyle = 'black';
             drawingCtx.beginPath();
-            drawingCtx.arc(x, y, 3, 0, Math.PI * 2);
+            drawingCtx.arc(x, y, 10, 0, Math.PI * 2);
             drawingCtx.fill();
 
             hasDrawing = true;
@@ -188,87 +198,40 @@
             const imageData = drawingCtx.getImageData(0, 0, width, height);
             const pixels = imageData.data;
 
+
             // Convert to grayscale array (0 to 1 scale)
-            const spatialData = new Array(height);
+            const spatialData = zeros([height, width]);
             for (let y = 0; y < height; y++) {
-                spatialData[y] = new Array(width);
                 for (let x = 0; x < width; x++) {
                     const idx = (y * width + x) * 4;
-                    // Convert RGB to grayscale, normalize to 0-1
-                    const gray = (pixels[idx] + pixels[idx + 1] + pixels[idx + 2]) / (3 * 255);
-                    spatialData[y][x] = gray;
+                    const gray = pixels[idx] < 250 ? 0 : 1;
+                    spatialData.set(y,x,gray)
                 }
             }
-
-            // Compute 2D DFT
-            const frequencyReal = {};
-            const frequencyImag = {};
-
-            // Sample the frequency domain (not every point for performance)
-            const sampleRate = 4; // Adjust for performance vs quality
-            for (let ky = 0; ky < height; ky += sampleRate) {
-                for (let kx = 0; kx < width; kx += sampleRate) {
-                    let real = 0;
-                    let imag = 0;
-
-                    // Sum over all spatial points (with sampling for performance)
-                    const spatialSample = 2;
-                    for (let y = 0; y < height; y += spatialSample) {
-                        for (let x = 0; x < width; x += spatialSample) {
-                            const angle = -2 * Math.PI * ((kx * x / width) + (ky * y / height));
-                            real += spatialData[y][x] * Math.cos(angle);
-                            imag += spatialData[y][x] * Math.sin(angle);
-                        }
-                    }
-
-                    const key = `${ky},${kx}`;
-                    frequencyReal[key] = real;
-                    frequencyImag[key] = imag;
-                }
-            }
-
-            // Calculate magnitude and normalize
-            let maxMagnitude = 0;
-            const magnitude = {};
-            for (let ky = 0; ky < height; ky += sampleRate) {
-                for (let kx = 0; kx < width; kx += sampleRate) {
-                    const key = `${ky},${kx}`;
-                    const real = frequencyReal[key] || 0;
-                    const imag = frequencyImag[key] || 0;
-                    const mag = Math.sqrt(real * real + imag * imag);
-                    magnitude[key] = mag;
-                    if (mag > maxMagnitude) maxMagnitude = mag;
-                }
-            }
-
             // Display the Fourier transform with logarithmic scaling
             const outputImageData = fourierCtx.createImageData(width, height);
             const outputPixels = outputImageData.data;
-
-            // Guard against division by zero
-            if (maxMagnitude > 0) {
-                for (let ky = 0; ky < height; ky += sampleRate) {
-                    for (let kx = 0; kx < width; kx += sampleRate) {
-                        const key = `${ky},${kx}`;
-                        const mag = magnitude[key] || 0;
-                        
-                        // Log scaling for better visualization
-                        const normalized = Math.log(1 + mag) / Math.log(1 + maxMagnitude);
-                        const intensity = Math.floor(normalized * 255);
-                        
-                        // Shift zero frequency to center
-                        const shiftedX = (kx + Math.floor(width / 2)) % width;
-                        const shiftedY = (ky + Math.floor(height / 2)) % height;
-                        const shiftedIdx = (shiftedY * width + shiftedX) * 4;
-                        
-                        outputPixels[shiftedIdx] = intensity;
-                        outputPixels[shiftedIdx + 1] = intensity;
-                        outputPixels[shiftedIdx + 2] = intensity;
-                        outputPixels[shiftedIdx + 3] = 255;
-                    }
+            fft(2,spatialData,zeros([height, width]));
+            ops.abseq(spatialData);
+            ops.powseq(spatialData,2);
+            spatialData.set(0,0,0); // avoid log(0) issues
+            ops.logeq(spatialData);
+            ops.divseq(spatialData, ops.sup(spatialData));
+            let buffer = new Float32Array(width * height * 4);
+            for(let y = 0; y < height; y++) {
+                const ys = (y + height/2) % height;
+                for(var x = 0; x < width; x++) {
+                    const xs = (x + width/2) % width;
+                    var val = spatialData.get(ys,xs);
+                    var pos = (y * width + x) * 4; // position in buffer based on x and y
+                    buffer[pos  ] = val*255;           // some R value [0, 255]
+                    buffer[pos+1] = val*255;           // some G value
+                    buffer[pos+2] = val*255;           // some B value
+                    buffer[pos+3] = 255;           // set alpha channel
                 }
             }
-
+            outputPixels.set(buffer);
+            console.log(ops.inf(spatialData))
             fourierCtx.putImageData(outputImageData, 0, 0);
         }
 
